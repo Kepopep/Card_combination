@@ -19,12 +19,16 @@ namespace Project.Core
         private StashDeck _stashDeck;
 
         public CardController CurrentCard { get; private set; }
-        public event Action<CardController> OnCurrentCardChanged;
 
         public event Action<ICardModel> OnCardCreated;
+        public event Action OnCardGameInited;
 
         private ICardComboGenerator _fieldInfoGenerator;
         private IStashPresenter _stashPresenter;
+
+        private Vector2 _handPosition;
+
+        public FieldGenerationInfo FieldGenerationInfo { get; private set; }
 
         public void Init(ICardComboGenerator comboGenerator, IStashPresenter stashPresenter)
         {
@@ -34,36 +38,33 @@ namespace Project.Core
             _fieldInfoGenerator = comboGenerator;
             _stashPresenter = stashPresenter;
 
-            var fieldGenerationInfo = _fieldInfoGenerator.GetFieldGenerationInfo();
+            _handPosition = _stashPresenter.GetHandPivot();
 
-            var generationInfo = new CardGenerationInfo()
+            FieldGenerationInfo = _fieldInfoGenerator.GetFieldGenerationInfo();
+
+            var generationInfo = new CardGenerationInfo() //TODO think about naming
             {
-                CardCount = fieldGenerationInfo.CardCount,
-                DeckSizes = fieldGenerationInfo.DeckSizes,
-                CombinationMinLenght = fieldGenerationInfo.CombinationMinLenght,
-                CombinationMaxLenght = fieldGenerationInfo.CombinationMaxLenght
+                CardCount = FieldGenerationInfo.CardCount,
+                DeckSizes = FieldGenerationInfo.DeckSizes,
+                CombinationMinLenght = FieldGenerationInfo.CombinationMinLenght,
+                CombinationMaxLenght = FieldGenerationInfo.CombinationMaxLenght
             };
 
             var cardShuffler = new CardShuffler(generationInfo);
             var shafledCards = cardShuffler.GenerateCards();
 
-            var fieldCards = CreateCardControllers(shafledCards.Field);
-            InitFieldCards(fieldCards, fieldGenerationInfo);
-
-            var firstCards = fieldCards.FindAll(x => x.Previous == null);
-
-            foreach (var item in firstCards)
-            {
-                item.Open();
-            }
-
             var stashCards = CreateCardControllers(shafledCards.Stash);
-            InitStashCards(stashCards, _stashPresenter.GetPivots());
+            _stashDeck = new StashDeck(stashCards, this, _stashPresenter.GetStashPivots());
+            _stashDeck.Init();
 
-            _stashDeck = new StashDeck(stashCards, this);
+            var fieldCards = CreateCardControllers(shafledCards.Field);
+            _fieldDeck = new FieldDeck(fieldCards, this);
+            _fieldDeck.Init();
             
             _cardsInteractionSystem.Init(fieldCards);
             _cardsInteractionSystem.Init(stashCards);
+
+            OnCardGameInited?.Invoke();
         }
 
         private void OnCardClick(CardController cardController)
@@ -80,55 +81,14 @@ namespace Project.Core
         public void Update()
         {
             _cardsInteractionSystem.Update();
-            _cardsInteractionSystem.DrawDebug();
         }
 
         public void ChangeCurrentCard(CardController cardController)
         {
+            cardController.Deactivate();
+            cardController.SetPosition(_handPosition);
+
             CurrentCard = cardController;
-
-            OnCurrentCardChanged?.Invoke(cardController);
-        }
-
-        private void InitFieldCards(List<CardController> cardControllers, FieldGenerationInfo cartPattern)
-        {
-            var cardCount = cardControllers.Count;
-
-            int previousIndex;
-            int nextIndex;
-
-            CardController previousCard;
-            CardController nextCard;
-
-            Vector2 position;
-
-            for (int i = 0; i < cardCount; i++)
-            {
-                previousIndex = cartPattern.CardViewLinkMediators[i].PreviousIndex;
-                nextIndex = cartPattern.CardViewLinkMediators[i].NextIndex;
-
-                previousCard = previousIndex == -1 ? null : cardControllers[previousIndex];
-                nextCard = nextIndex == -1 ? null : cardControllers[nextIndex];
-
-                cardControllers[i].InitRelationship(previousCard, nextCard);
-
-                position.X = cartPattern.CardViewLinkMediators[i].Position.X;
-                position.Y = cartPattern.CardViewLinkMediators[i].Position.Y;
-                cardControllers[i].SetPosition(position);
-            }
-        }
-
-        private void InitStashCards(List<CardController> cardControllers, List<Vector2> positions)
-        {
-            var positionIndex = 0;
-            var positionsCount = positions.Count;
-
-            foreach (var item in cardControllers)
-            {
-                item.SetPosition(positions[positionIndex]);
-
-                positionIndex = positionIndex + 1 < positionsCount ? positionIndex + 1 : positionsCount - 1; // TODO clear
-            }
         }
 
         private List<CardController> CreateCardControllers(List<CardValue> cardValues)

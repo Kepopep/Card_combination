@@ -21,5 +21,7 @@ namespace Project.Core.Deck
         }
 
         protected abstract void HandleCardClick(CardController cardController);
+
+        public abstract void Init();
     }
 }

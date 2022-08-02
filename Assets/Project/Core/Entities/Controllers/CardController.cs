@@ -21,6 +21,7 @@ namespace Project.Core.Entities.Controllers
         public event Action<CardController, Vector2> OnPositionChanged;
 
         public CardController Previous => _previous;
+        public CardController Next => _next;
 
         private CardController _next;
         private CardController _previous;

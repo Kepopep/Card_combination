@@ -16,6 +16,7 @@ namespace Project.UnityView
 
 
         private Dictionary<int, CardView> _cardViews;
+        private List<CardViewInstance> _createdViewInstances;
 
 
         [System.Serializable]
@@ -28,6 +29,7 @@ namespace Project.UnityView
         private void Awake()
         {
             _cardViews = _cardViewList.ToDictionary(x => x.Value);
+            _createdViewInstances = new List<CardViewInstance>();
         }
 
         public void CreateView(Interfaces.ICardModel model)
@@ -38,6 +40,16 @@ namespace Project.UnityView
             var spriteIndex = Random.Range(0, _cardViews[model.Value].Sprites.Count);
 
             cardView.Init(model, _cardViews[model.Value].Sprites[spriteIndex]);
+
+            _createdViewInstances.Add(cardView);
+        }
+
+        public void Init()
+        {
+            foreach (var item in _createdViewInstances)
+            {
+                item.GameInited(); // TODO rename!!!!
+            }
         }
     }
 }

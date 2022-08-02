@@ -20,8 +20,14 @@ namespace Project.UnityView
 
             _game = new CardGame();
             _game.OnCardCreated += _game_OnCardCreated;
+            _game.OnCardGameInited += _game_OnCardGameInited;
 
             _game.Init(_fieldCardLinker, _stashCardsPivotHolder);
+        }
+
+        private void _game_OnCardGameInited()
+        {
+            _cardViewFabric.Init();
         }
 
         private void _game_OnCardCreated(Project.Interfaces.ICardModel model)

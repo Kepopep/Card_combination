@@ -1,5 +1,4 @@
 ﻿using Project.Core.Entities.Controllers;
-using Project.Core.Entities.Models;
 using Project.Data;
 using System;
 using System.Collections.Generic;
@@ -16,14 +15,11 @@ namespace Project.Interaction
             public CardController Controller;
             public Vector2[] EdgePositions;
 
-            public CardCollision(CardController controller)
+            public CardCollision(CardController controller, Vector2 size)
             {
                 Controller = controller;
-                EdgePositions = new Vector2[2];
-            }
 
-            public void UpdateEdgePoints(Vector2 size)
-            {
+                EdgePositions = new Vector2[2];
                 EdgePositions[0] = Controller.Model.Position - size / 2f;
                 EdgePositions[1] = Controller.Model.Position + size / 2f;
             }
@@ -41,7 +37,7 @@ namespace Project.Interaction
 
         private DoubleBuffer<CardCollision> _cardsBuffer;
 
-        private Vector2 _colliderSize = Vector2.One;
+        private Vector2 _colliderSize = new Vector2(1.45f, 2.1f);
 
         public InteractionSystem()
         {
@@ -64,10 +60,25 @@ namespace Project.Interaction
             }
         }
 
+        public void Click(Vector2 clickPosition)
+        {
+            var clickedCard = _cardsBuffer.Current.Find(x => x.IsPointInside(clickPosition));
+
+            if (clickedCard.Controller != null)
+            {
+                OnClick?.Invoke(clickedCard.Controller);
+            }
+        }
+
+        public void Update()
+        {
+            _cardsBuffer.Swap();
+            DrawDebug();
+        }
+
         private void ActivateCardInteracliton(CardController cardController)
         {
-            var collision = new CardCollision(cardController);
-            collision.UpdateEdgePoints(_colliderSize);
+            var collision = new CardCollision(cardController, _colliderSize);
 
             _cardsBuffer.Add(collision);
         }
@@ -77,27 +88,16 @@ namespace Project.Interaction
             var collisionToRemove = _cardsBuffer.Current.Find(x => x.Controller == cardController);
 
             _cardsBuffer.Remove(collisionToRemove);
+
+            cardController.OnDeactivated -= DeactivateCardInteraction;
+            cardController.OnOpen -= ActivateCardInteracliton;
         }
 
-        public void Click(Vector2 clickPosition)
+        private void DrawDebug()
         {
-            foreach (var item in _cardsBuffer.Current)
-            {
-                if (item.IsPointInside(clickPosition))
-                {
-                    OnClick?.Invoke(item.Controller);
-                    return; //TODO add layers / order by z
-                }
-            }
-        }
+#if UNITY_EDITOR
+            UnityEngine.Gizmos.color = UnityEngine.Color.red;
 
-        public void Update()
-        {
-            _cardsBuffer.Swap();
-        }
-
-        public void DrawDebug()
-        {
             foreach (var item in _cardsBuffer.Current)
             {
                 UnityEngine.Debug.DrawLine(ToUnityVector(item.EdgePositions[0]), ToUnityVector(item.EdgePositions[0] + new Vector2(_colliderSize.X, 0)));
@@ -106,6 +106,7 @@ namespace Project.Interaction
                 UnityEngine.Debug.DrawLine(ToUnityVector(item.EdgePositions[1] - new Vector2(_colliderSize.X, 0)), ToUnityVector(item.EdgePositions[0]));
 
             }
+#endif
         }
 
         private UnityEngine.Vector2 ToUnityVector(Vector2 vector)

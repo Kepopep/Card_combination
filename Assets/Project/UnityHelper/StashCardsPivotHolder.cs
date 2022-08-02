@@ -5,8 +5,16 @@ using UnityEngine;
 public class StashCardsPivotHolder : MonoBehaviour, IStashPresenter
 {
     [SerializeField] private List<Transform> _pivots;
+    [SerializeField] private Transform _handPivot;
 
-    public List<System.Numerics.Vector2> GetPivots()
+    public System.Numerics.Vector2 GetHandPivot()
+    {
+        var position = Camera.main.ScreenToWorldPoint(_handPivot.position);
+
+        return new System.Numerics.Vector2(position.x, position.y);
+    }
+
+    public List<System.Numerics.Vector2> GetStashPivots()
     {
         var result = new List<System.Numerics.Vector2>();
         var camera = Camera.main;
