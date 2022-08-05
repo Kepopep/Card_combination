@@ -14,9 +14,7 @@ namespace Project.UnityView
 
         [SerializeField] private Transform _viewParent;
 
-
         private Dictionary<int, CardView> _cardViews;
-        private List<CardViewInstance> _createdViewInstances;
 
 
         [System.Serializable]
@@ -29,27 +27,18 @@ namespace Project.UnityView
         private void Awake()
         {
             _cardViews = _cardViewList.ToDictionary(x => x.Value);
-            _createdViewInstances = new List<CardViewInstance>();
         }
 
-        public void CreateView(Interfaces.ICardModel model)
+        public CardViewInstance CreateView(Interfaces.ICardModel model)
         {
-            var cardView = GameObject.Instantiate(_viewTemplate, _viewParent);
-            cardView.transform.SetAsFirstSibling();
+            var cardViewInstance = GameObject.Instantiate(_viewTemplate, _viewParent);
+            cardViewInstance.transform.SetAsFirstSibling();
 
             var spriteIndex = Random.Range(0, _cardViews[model.Value].Sprites.Count);
 
-            cardView.Init(model, _cardViews[model.Value].Sprites[spriteIndex]);
+            cardViewInstance.Init(model, _cardViews[model.Value].Sprites[spriteIndex]);
 
-            _createdViewInstances.Add(cardView);
-        }
-
-        public void Init()
-        {
-            foreach (var item in _createdViewInstances)
-            {
-                item.GameInited(); // TODO rename!!!!
-            }
+            return cardViewInstance;
         }
     }
 }

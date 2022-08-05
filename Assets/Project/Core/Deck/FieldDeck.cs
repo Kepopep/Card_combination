@@ -1,5 +1,4 @@
 ﻿using Project.Core.Entities.Controllers;
-using System;
 using System.Collections.Generic;
 using System.Numerics;
 
@@ -7,11 +6,27 @@ namespace Project.Core.Deck
 {
     internal class FieldDeck : InteractableDeckBase
     {
-        public FieldDeck(List<CardController> cards, CardGame game) : base(cards, game) { }
+        public FieldDeck(CardGame game) : base(game) { }
 
-        public override void Init()
+        public override bool CheckInteractPossibility()
         {
-            var cardPattern = _game.FieldGenerationInfo;
+            var openedCards = _cards.FindAll(x => x.Model.State == Interfaces.ICardModel.State.Open);
+
+            var result = false;
+
+            foreach (var item in openedCards)
+            {
+                result |= item.Model.CardValue.CanUseLikeCombination(_game.CurrentCard.CardValue.Value);
+            }
+
+            return result;
+        }
+
+        public override void Init(List<CardController> cards)
+        {
+            base.Init(cards);
+
+            var cardPattern = _game.FieldPattern;
             var cardCount = cardPattern.CardCount;
 
             int previousIndex;
@@ -41,6 +56,7 @@ namespace Project.Core.Deck
 
             foreach (var item in firstCards)
             {
+                item.ActivateInteractions();
                 item.Open();
             }
         }
@@ -51,14 +67,15 @@ namespace Project.Core.Deck
             {
                 if(cardController.Next != null)
                 {
+                    cardController.Next.ActivateInteractions();
                     cardController.Next.Open();
                 }
 
                 _game.ChangeCurrentCard(cardController);
 
-                _cards.Remove(cardController);
+                RemoveCardFromDeck(cardController);
 
-                cardController.Deactivate();
+                cardController.DeactivateInteractions();
             }
         }
     }

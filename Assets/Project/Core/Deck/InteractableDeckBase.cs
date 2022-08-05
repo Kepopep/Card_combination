@@ -1,18 +1,28 @@
 ﻿using Project.Core.Entities.Controllers;
+using System;
 using System.Collections.Generic;
 
 namespace Project.Core.Deck
 {
     internal abstract class InteractableDeckBase
     {
-        protected List<CardController> _cards;
+        public event Action OnCardsCountUpdated;
 
+        public int CardsCount => _cards.Count;
+
+        protected List<CardController> _cards;
         protected CardGame _game;
 
-        public InteractableDeckBase(List<CardController> cards, CardGame game)
+        public InteractableDeckBase(CardGame game)
         {
-            _cards = cards;
-            _game = game; 
+            _cards = new List<CardController>();
+            _game = game;
+        }
+
+        public virtual void Init(List<CardController> cards)
+        {
+            _cards.Clear();
+            _cards.AddRange(cards);
 
             foreach (var item in _cards)
             {
@@ -20,8 +30,17 @@ namespace Project.Core.Deck
             }
         }
 
+        protected void RemoveCardFromDeck(CardController cardController)
+        {
+            _cards.Remove(cardController);
+
+            OnCardsCountUpdated?.Invoke();
+
+            cardController.OnInteract -= HandleCardClick;
+        }
+
         protected abstract void HandleCardClick(CardController cardController);
 
-        public abstract void Init();
+        public abstract bool CheckInteractPossibility();
     }
 }

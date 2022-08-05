@@ -8,7 +8,7 @@ namespace Project.Core
 
         public int Value;
 
-        private static readonly int _allCardCount = 13;
+        public static readonly int MaxValue = 12;
 
         public CardValue(int value)
         {
@@ -17,14 +17,14 @@ namespace Project.Core
 
         public static CardValue operator +(CardValue cardValue, int addValue)
         {
-            cardValue.Value = (cardValue.Value + addValue) % _allCardCount;
+            cardValue.Value = (cardValue.Value + addValue) % (MaxValue + 1);
             return cardValue;
         }
 
         public static CardValue operator -(CardValue cardValue, int addValue)
         {
             var tempValue = cardValue.Value - addValue;
-            cardValue.Value = tempValue < 0 ? _allCardCount - (Math.Abs(tempValue) % _allCardCount) : tempValue;
+            cardValue.Value = tempValue < 0 ? (MaxValue + 1) - (Math.Abs(tempValue) % (MaxValue + 1)) : tempValue;
             return cardValue;
         }
             

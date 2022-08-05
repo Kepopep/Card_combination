@@ -2,26 +2,48 @@ using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
 
+using UnityEngine.EventSystems;
+
 using static Project.Interfaces.ICardModel;
 
 namespace Project.UnityView
 {
-    public class CardViewInstance : MonoBehaviour
+    internal class CardViewInstance : MonoBehaviour, IPointerDownHandler
     {
         [SerializeField] private Image _image;
 
         private readonly int _closedRotaion = 180;
         private readonly int _openRotation = 0;
-        private readonly float _moveTime = 1f;
 
-        private bool _gameInited;
+        private bool _gameActive;
+
+        private float _moveTime = 0;
+        private float _rotateTime = 0;
+
+        public Interfaces.ICardModel Model { get; private set; }
 
         public void Init(Interfaces.ICardModel model, Sprite sprite)
         {
             _image.sprite = sprite;
 
-            model.OnPositionChanged += OnPositionChanged;
-            model.OnStateChanged += OnStateChanged;
+            Model = model;
+
+            Model.OnPositionChanged += OnPositionChanged;
+            Model.OnStateChanged += OnStateChanged;
+        }
+
+        private void OnDestroy()
+        {
+            Model.OnPositionChanged -= OnPositionChanged;
+            Model.OnStateChanged -= OnStateChanged;
+        }
+
+        public void ActivateGameState()
+        {
+            _gameActive = true;
+
+            _moveTime = 1;
+            _rotateTime = 0.5f;
         }
 
         private void OnStateChanged(State state)
@@ -36,9 +58,6 @@ namespace Project.UnityView
                     Rotate(_openRotation);
                     break;
 
-                case State.Inactive:
-                    break;
-
                 default:
                     break;
             }
@@ -48,32 +67,22 @@ namespace Project.UnityView
         {
             var unityScreenPosition = Camera.main.WorldToScreenPoint(new Vector2(position.X, position.Y));
 
-            if(_gameInited)
+            if(_gameActive)
             {
                 transform.SetAsLastSibling();
-                transform.DOMove(unityScreenPosition, _moveTime);
             }
-            else
-            {
-                transform.DOMove(unityScreenPosition, 0);
-            }
+            
+            transform.DOMove(unityScreenPosition, _moveTime);
         }
 
         private void Rotate(int resultAngle)
         {
-            if (_gameInited)
-            {
-                transform.DORotate(new Vector3(0, resultAngle, 0), 0.5f);
-            }
-            else
-            {
-                transform.DORotate(new Vector3(0, resultAngle, 0), 0);
-            }
+            transform.DORotate(new Vector3(0, resultAngle, 0), _rotateTime);
         }
 
-        public void GameInited()
+        public void OnPointerDown(PointerEventData eventData)
         {
-            _gameInited = true;
+            Debug.Log($"Clicked {transform.name}");
         }
     }
 }

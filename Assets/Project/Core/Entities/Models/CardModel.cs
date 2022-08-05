@@ -6,16 +6,16 @@ using static Project.Interfaces.ICardModel;
 
 namespace Project.Core.Entities.Models
 {
-    internal class CardModel : ICardModel
+    public class CardModel : ICardModel
     {
         public CardValue CardValue { get; private set; }
         public Vector2 Position { get; private set; }
         public State State { get; private set; } 
 
-        public int Value => CardValue.Value;
-
         public event Action<State> OnStateChanged;
         public event Action<Vector2> OnPositionChanged;
+
+        public int Value => CardValue.Value;
 
         public CardModel(CardValue value)
         {
@@ -32,6 +32,7 @@ namespace Project.Core.Entities.Models
         public void SetPosition(Vector2 newPosition)
         {
             Position = newPosition;
+
             OnPositionChanged?.Invoke(Position);
         }
     }

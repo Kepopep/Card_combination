@@ -44,15 +44,15 @@ namespace Project.Interaction
             _cardsBuffer = new DoubleBuffer<CardCollision>();
         }
 
-        public void Init(List<CardController> cards)
+        public void InitInteraction(List<CardController> cards)
         {
             foreach (var item in cards)
             {
+                item.OnActivated += ActivateCardInteracliton;
                 item.OnDeactivated += DeactivateCardInteraction;
-                item.OnOpen += ActivateCardInteracliton;
             }
 
-            var openedCard = cards.FindAll(x => x.Model.State == State.Open);
+            var openedCard = cards.FindAll(x => x.Model.State == State.Open || x.Model.State == State.Active);
 
             foreach (var item in openedCard)
             {
@@ -73,9 +73,13 @@ namespace Project.Interaction
         public void Update()
         {
             _cardsBuffer.Swap();
-            DrawDebug();
         }
 
+        public void Reset()
+        {
+            _cardsBuffer.Clear();
+        }
+            
         private void ActivateCardInteracliton(CardController cardController)
         {
             var collision = new CardCollision(cardController, _colliderSize);
@@ -91,27 +95,6 @@ namespace Project.Interaction
 
             cardController.OnDeactivated -= DeactivateCardInteraction;
             cardController.OnOpen -= ActivateCardInteracliton;
-        }
-
-        private void DrawDebug()
-        {
-#if UNITY_EDITOR
-            UnityEngine.Gizmos.color = UnityEngine.Color.red;
-
-            foreach (var item in _cardsBuffer.Current)
-            {
-                UnityEngine.Debug.DrawLine(ToUnityVector(item.EdgePositions[0]), ToUnityVector(item.EdgePositions[0] + new Vector2(_colliderSize.X, 0)));
-                UnityEngine.Debug.DrawLine(ToUnityVector(item.EdgePositions[0] + new Vector2(_colliderSize.X, 0)), ToUnityVector(item.EdgePositions[1]));
-                UnityEngine.Debug.DrawLine(ToUnityVector(item.EdgePositions[1]), ToUnityVector(item.EdgePositions[1] - new Vector2(_colliderSize.X, 0)));
-                UnityEngine.Debug.DrawLine(ToUnityVector(item.EdgePositions[1] - new Vector2(_colliderSize.X, 0)), ToUnityVector(item.EdgePositions[0]));
-
-            }
-#endif
-        }
-
-        private UnityEngine.Vector2 ToUnityVector(Vector2 vector)
-        {
-            return new UnityEngine.Vector2(vector.X, vector.Y);
         }
     }
 }

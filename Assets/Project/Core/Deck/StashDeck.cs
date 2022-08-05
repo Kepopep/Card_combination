@@ -10,39 +10,47 @@ namespace Project.Core.Deck
         private Queue<CardController> _cardsQueue;
         private List<Vector2> _positions;
 
-        public StashDeck(List<CardController> cards, CardGame game, List<Vector2> positions) : base(cards, game) //TODO think about separetion
+        public StashDeck(CardGame game, List<Vector2> positions) : base(game)
         {
             _positions = positions;
-            _cardsQueue = new Queue<CardController>(cards);
         }
 
-        public override void Init()
+        public override bool CheckInteractPossibility()
         {
-            _cards[0].Open();
-            SetAsHandCard(_cards[0]);
+            return _cards.Count != 0;
+        }
+
+        public override void Init(List<CardController> cards)
+        {
+            base.Init(cards);
+
+            _cardsQueue = new Queue<CardController>(_cards);
+
+            TakeTopCard();
         }
 
         protected override void HandleCardClick(CardController cardController)
         {
-            SetAsHandCard(cardController);
+            TakeTopCard();
         }
 
-        private void SetAsHandCard(CardController cardController)
+        private void TakeTopCard()
         {
-            _game.ChangeCurrentCard(cardController);
-            cardController.OnInteract -= HandleCardClick;
+            var topCard = _cardsQueue.Dequeue();
 
-            var firstStashCard = _cardsQueue.Dequeue();
-            firstStashCard.Deactivate();
+            topCard.Open();
+            topCard.DeactivateInteractions();
 
-            if (_cardsQueue.Count == 0)
+            _game.ChangeCurrentCard(topCard);
+
+            if (_cardsQueue.Count != 0)
             {
-                return;
+                UpdateStashPosition();
+
+                _cardsQueue.Peek().ActivateInteractions();
             }
 
-            UpdateStashPosition();
-
-            _cardsQueue.Peek().Open();
+            RemoveCardFromDeck(topCard);
         }
 
         private void UpdateStashPosition()

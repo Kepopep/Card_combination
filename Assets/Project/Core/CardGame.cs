@@ -1,79 +1,97 @@
-﻿using Project.Core.Deck;
-using Project.Core.Entities.Controllers;
-using Project.Interaction;
-using Project.Interfaces;
-using System;
-using System.Collections.Generic;
+﻿using System;
+using System.Linq;
 using System.Numerics;
+using System.Collections.Generic;
+using Project.Interfaces;
+using Project.Interaction;
+using Project.Core.Deck;
+using Project.Core.Entities.Controllers;
 
-using static Project.Core.CardShuffler;
-using static Project.Interfaces.ICardComboGenerator;
+using static Project.Core.CardComboGenerator;
+using static Project.Interfaces.IFieldPatternGenerator;
+using static Project.Interfaces.ICardGame;
 
 namespace Project.Core
 {
-    internal class CardGame
+    public class CardGame : ICardGame
     {
+        public FieldPatternInfo FieldPattern { get; private set; }
+        internal CardController CurrentCard { get; private set; }
+        public bool GameIsActive { get; private set; }
+
+        public event Action<List<ICardModel>> OnCardGameCardCreated;
+        public event Action OnCardGameInited;
+        public event Action<EndResult> OnCardGameEnd;
+
         private InteractionSystem _cardsInteractionSystem;
 
         private FieldDeck _fieldDeck;
         private StashDeck _stashDeck;
 
-        public CardController CurrentCard { get; private set; }
-
-        public event Action<ICardModel> OnCardCreated;
-        public event Action OnCardGameInited;
-
-        private ICardComboGenerator _fieldInfoGenerator;
-        private IStashPresenter _stashPresenter;
+        private IFieldPatternGenerator _fieldPatternGenerator;
+        private IStashPatternGenerator _stashPatternGenerator;
 
         private Vector2 _handPosition;
 
-        public FieldGenerationInfo FieldGenerationInfo { get; private set; }
+        private ResultChecker _gameLoop;
 
-        public void Init(ICardComboGenerator comboGenerator, IStashPresenter stashPresenter)
+        private CardComboGenerator _cardShuffler;
+
+        public void Init(IFieldPatternGenerator comboGenerator, IStashPatternGenerator stashPresenter)
         {
             _cardsInteractionSystem = new InteractionSystem();
             _cardsInteractionSystem.OnClick += OnCardClick;
 
-            _fieldInfoGenerator = comboGenerator;
-            _stashPresenter = stashPresenter;
+            _fieldPatternGenerator = comboGenerator;
+            _stashPatternGenerator = stashPresenter;
 
-            _handPosition = _stashPresenter.GetHandPivot();
+            _handPosition = _stashPatternGenerator.GetHandPosition();
 
-            FieldGenerationInfo = _fieldInfoGenerator.GetFieldGenerationInfo();
+            FieldPattern = _fieldPatternGenerator.GetFieldPatternInfo();
 
-            var generationInfo = new CardGenerationInfo() //TODO think about naming
+            var generationInfo = new ComboGenerationInfo()
             {
-                CardCount = FieldGenerationInfo.CardCount,
-                DeckSizes = FieldGenerationInfo.DeckSizes,
-                CombinationMinLenght = FieldGenerationInfo.CombinationMinLenght,
-                CombinationMaxLenght = FieldGenerationInfo.CombinationMaxLenght
+                CardCount = FieldPattern.CardCount,
+                DeckSizes = FieldPattern.DeckSizes,
+                MinLenght = FieldPattern.CombinationMinLenght,
+                MaxLenght = FieldPattern.CombinationMaxLenght
             };
 
-            var cardShuffler = new CardShuffler(generationInfo);
-            var shafledCards = cardShuffler.GenerateCards();
+            _cardShuffler = new CardComboGenerator(generationInfo);
+
+            _fieldDeck = new FieldDeck(this);
+            _stashDeck = new StashDeck(this, _stashPatternGenerator.GetStashPositions());
+
+            _gameLoop = new ResultChecker(this, _fieldDeck, _stashDeck);
+        }
+
+        public void StartGame()
+        {
+            var shafledCards = _cardShuffler.GenerateCards();
 
             var stashCards = CreateCardControllers(shafledCards.Stash);
-            _stashDeck = new StashDeck(stashCards, this, _stashPresenter.GetStashPivots());
-            _stashDeck.Init();
-
             var fieldCards = CreateCardControllers(shafledCards.Field);
-            _fieldDeck = new FieldDeck(fieldCards, this);
-            _fieldDeck.Init();
-            
-            _cardsInteractionSystem.Init(fieldCards);
-            _cardsInteractionSystem.Init(stashCards);
+
+            var cardModels = new List<ICardModel>();
+
+            cardModels.AddRange(stashCards.Select(x => (ICardModel)x.Model));
+            cardModels.AddRange(fieldCards.Select(x => (ICardModel)x.Model));
+
+            OnCardGameCardCreated?.Invoke(cardModels);
+
+            _stashDeck.Init(stashCards);
+            _fieldDeck.Init(fieldCards);
+
+            _cardsInteractionSystem.Reset();
+            _cardsInteractionSystem.InitInteraction(stashCards);
+            _cardsInteractionSystem.InitInteraction(fieldCards);
+
+            GameIsActive = true;
 
             OnCardGameInited?.Invoke();
         }
 
-        private void OnCardClick(CardController cardController)
-        {
-            cardController.Interact();
-            UnityEngine.Debug.Log($"Clicked, current points {CurrentCard.Model.CardValue.Value}, clicked card {cardController.CardValue.Value}");
-        }
-
-        public void HandleClick(Vector2 clickPoint)
+        public void HandleInput(Vector2 clickPoint)
         {
             _cardsInteractionSystem.Click(clickPoint);
         }
@@ -83,25 +101,34 @@ namespace Project.Core
             _cardsInteractionSystem.Update();
         }
 
-        public void ChangeCurrentCard(CardController cardController)
+        internal void EndGame(EndResult result)
         {
-            cardController.Deactivate();
+            GameIsActive = false;
+
+            OnCardGameEnd?.Invoke(result);
+        }
+
+        internal void ChangeCurrentCard(CardController cardController)
+        {
+            cardController.DeactivateInteractions();
             cardController.SetPosition(_handPosition);
 
             CurrentCard = cardController;
         }
 
+        private void OnCardClick(CardController cardController)
+        {
+            if(GameIsActive)
+            {
+                cardController.Interact();
+            }
+        }
+      
         private List<CardController> CreateCardControllers(List<CardValue> cardValues)
         {
             var result = new List<CardController>();
 
-            foreach (var item in cardValues)
-            {
-                var controller = new CardController(item);
-
-                result.Add(controller);
-                OnCardCreated?.Invoke(controller.Model);
-            }
+            result = cardValues.Select(x => new CardController(x)).ToList();
 
             return result;
         }

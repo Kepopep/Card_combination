@@ -7,9 +7,10 @@ namespace Project.Interfaces
     {
         public enum State
         {
+            Inactive,
+            Active,
             Close,
-            Open,
-            Inactive
+            Open
         }
 
         public event Action<State> OnStateChanged;
